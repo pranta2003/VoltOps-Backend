@@ -1,0 +1,49 @@
+name: CI
+
+# Runs on every push to main, and on every pull request targeting main.
+# This is a quality gate, not a deployment - it just proves the backend
+# actually compiles cleanly before it's allowed into main. Render/Railway
+# (set up separately) handles the actual live deployment.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    # "prisma generate" only needs DATABASE_URL to exist as a string - it
+    # does NOT connect to a real database for this command (only actual
+    # migrations do). So a placeholder value is fine here; this workflow
+    # never touches a real database.
+    env:
+      DATABASE_URL: "postgresql://user:password@localhost:5432/voltops_ci"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Must run before the build step - our controllers import types
+      # (Role, TechnicianStatus, etc.) directly from the generated Prisma
+      # client, so TypeScript can't compile until this has run once.
+      - name: Generate Prisma Client
+        run: npm run prisma:generate
+
+      - name: Type-check and build
+        run: npm run build
+
+  # Add a "lint" or "test" job here once we actually set up ESLint/a test
+  # suite - no point adding a step that has nothing to run yet.
+  #
+  # A real database integration test (spinning up a Postgres service
+  # container, running migrations, running tests against it) can be added
+  # later once we have actual tests worth running against a live DB.
