@@ -1,0 +1,156 @@
+// ============================================================================
+// FieldOps Database Schema
+// ============================================================================
+// This file is the single source of truth for our database structure.
+// Whenever you change something here, run: npm run prisma:migrate
+// That command updates the real database AND regenerates the type-safe
+// Prisma Client that our backend code imports from "@prisma/client".
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
+
+// Every account in the system has exactly one role.
+// Adding a new role later = add one line here + run a migration.
+enum Role {
+  ADMIN // full access, manages everything
+  DISPATCHER // assigns jobs to technicians, manages scheduling
+  TECHNICIAN // performs the field service work
+  CUSTOMER // requests service, tracks their own jobs
+}
+
+// A technician's current operational status.
+// Business rules (in the code, not here) decide which transitions are legal.
+// Example rule: a technician who is ON_JOB cannot set themselves to AVAILABLE.
+enum TechnicianStatus {
+  AVAILABLE
+  ON_JOB
+  TRAVELLING
+  BREAK
+  OFF_DUTY
+  ON_LEAVE
+  UNAVAILABLE
+}
+
+// ----------------------------------------------------------------------------
+// CORE USER MODEL
+// ----------------------------------------------------------------------------
+
+// Every person who can log in — admin, dispatcher, technician, or customer —
+// is a User. Role-specific extra fields live in their own linked table
+// (see TechnicianProfile below) instead of cramming every field into one
+// giant table.
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  password  String // stored as a bcrypt hash, never plain text
+  role      Role
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // If this user's role is TECHNICIAN, this relation holds their extra profile.
+  // Optional ("?") because a CUSTOMER or ADMIN user will not have one.
+  technicianProfile TechnicianProfile?
+
+  @@map("users")
+}
+
+// ----------------------------------------------------------------------------
+// TECHNICIAN PROFILE
+// ----------------------------------------------------------------------------
+
+// The extra, technician-only information referenced throughout the project
+// plan (skills, certifications, status, branch, etc). Kept separate from
+// User so that Admin/Dispatcher/Customer accounts don't carry unused fields.
+model TechnicianProfile {
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  employeeId   String           @unique
+  branch       String // e.g. "Dhaka", "Gazipur" — used later for area-based matching
+  department   String?
+  designation  String?
+  status       TechnicianStatus @default(OFF_DUTY)
+  joiningDate  DateTime         @default(now())
+  currentArea  String? // free-text area/zone, refined later if we add real GPS
+
+  skills         TechnicianSkill[]
+  certifications TechnicianCertification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("technician_profiles")
+}
+
+// ----------------------------------------------------------------------------
+// SKILLS & CERTIFICATIONS (the building blocks of the Matching Engine)
+// ----------------------------------------------------------------------------
+
+// A master list of skills a company can require for a job.
+// e.g. "Cummins Generator Repair", "HVAC Compressor", "Fiber Splicing"
+model Skill {
+  id   String @id @default(cuid())
+  name String @unique
+
+  technicians TechnicianSkill[]
+
+  @@map("skills")
+}
+
+// A master list of certifications. Certifications differ from skills because
+// they EXPIRE — that expiry date is what the Matching Engine checks in
+// Milestone 4.
+model Certification {
+  id   String @id @default(cuid())
+  name String @unique
+
+  technicians TechnicianCertification[]
+
+  @@map("certifications")
+}
+
+// Join table: which technician has which skill.
+// A join table (instead of a direct array) is what lets us add extra
+// details later, like a skill proficiency level, without redesigning
+// everything.
+model TechnicianSkill {
+  id                  String            @id @default(cuid())
+  technicianProfileId String
+  technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+  skillId             String
+  skill               Skill             @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  // A technician can only be linked to the same skill once.
+  @@unique([technicianProfileId, skillId])
+  @@map("technician_skills")
+}
+
+// Join table: which technician holds which certification, and when it expires.
+// This expiryDate field is the single most important field for the Matching
+// Engine we build in Milestone 4 — a job can require "must have a valid
+// certification", and the engine checks this date against today.
+model TechnicianCertification {
+  id                  String            @id @default(cuid())
+  technicianProfileId String
+  technicianProfile   TechnicianProfile @relation(fields: [technicianProfileId], references: [id], onDelete: Cascade)
+  certificationId     String
+  certification       Certification     @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  issuedDate          DateTime          @default(now())
+  expiryDate          DateTime
+
+  @@unique([technicianProfileId, certificationId])
+  @@map("technician_certifications")
+}
