@@ -42,6 +42,27 @@ enum TechnicianStatus {
   UNAVAILABLE
 }
 
+enum VerificationStatus {
+  VERIFIED
+  PENDING_REVIEW
+  REJECTED
+}
+
+enum AuditCategory {
+  AUTH
+  ROLE_CHANGE
+  DISPATCH
+  VERIFICATION
+  SECURITY
+  ACCOUNT
+}
+
+enum AuditSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
 // ----------------------------------------------------------------------------
 // CORE USER MODEL
 // ----------------------------------------------------------------------------
@@ -88,6 +109,15 @@ model TechnicianProfile {
 
   skills         TechnicianSkill[]
   certifications TechnicianCertification[]
+
+  // Verification Passport & Credential Lifecycle (Milestone 2.1)
+  verificationStatus VerificationStatus @default(PENDING_REVIEW)
+  verifiedAt         DateTime?
+  verifiedBy         String?
+  verificationNotes  String?
+  licenseNumber      String?
+  issuingAuthority   String?
+  licenseExpiryDate  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -153,4 +183,27 @@ model TechnicianCertification {
 
   @@unique([technicianProfileId, certificationId])
   @@map("technician_certifications")
+}
+
+// ----------------------------------------------------------------------------
+// AUDIT LOG (Immutable Administrative & Security Ledger)
+// ----------------------------------------------------------------------------
+model AuditLog {
+  id           String        @id @default(cuid())
+  timestamp    DateTime      @default(now())
+  actorId      String
+  actorName    String
+  actorRole    Role
+  actorIp      String?
+  category     AuditCategory
+  action       String
+  targetEntity String
+  severity     AuditSeverity @default(INFO)
+  details      String?
+
+  createdAt    DateTime      @default(now())
+
+  @@index([category])
+  @@index([timestamp])
+  @@map("audit_logs")
 }
