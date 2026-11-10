@@ -198,6 +198,7 @@ model AuditLog {
   category     AuditCategory
   action       String
   targetEntity String
+  targetId     String?
   severity     AuditSeverity @default(INFO)
   details      String?
 
@@ -205,5 +206,6 @@ model AuditLog {
 
   @@index([category])
   @@index([timestamp])
+  @@index([targetEntity, targetId])
   @@map("audit_logs")
 }
