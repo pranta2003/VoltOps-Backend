@@ -1,110 +1,118 @@
-# VoltOps — Backend
+# VoltOps — Backend API
 
-This is the **backend API** for VoltOps (AI-Powered Electrical Workforce & Service
-Management Platform). This is one of two repos for this project:
+This is the **backend API** for VoltOps (Commercial Field Service & Emergency Technician Coordination Platform).
 
-- This repo: backend (Node + Express + TypeScript + Prisma + PostgreSQL)
-- **Frontend repo:** `<add your frontend repo link here once created>`
+- **Backend Repository:** [https://github.com/pranta2003/VoltOps-Backend](https://github.com/pranta2003/VoltOps-Backend)
+- **Frontend Repository:** [https://github.com/pranta2003/VoltOps-Frontend](https://github.com/pranta2003/VoltOps-Frontend)
 
-For the full project plan, milestone roadmap, and feature scope, see
-`PROJECT_PLAN.md` in this repo (same file also lives in the frontend repo).
+For the complete project plan, course milestone alignment, and technical specifications, refer to `PROJECT_PLAN.md` and `docs/IMPLEMENTATION_PROGRESS.md`.
 
 ---
 
-## 1. What's already built (Milestone 1)
+## 1. Architecture & Technology Stack
 
-- JWT-based authentication: register (customer signup only), login, `/me`
-- Role-based access control enforced on the backend (Admin, Dispatcher, Technician, Customer)
-- Database schema (Prisma): Users, Technician Profiles, Skills, Certifications
-- A working protected route beyond auth: a technician can fetch their own profile
-- Socket.io wired into the server (ready for later, not used yet)
+- **Runtime & Framework**: Node.js 20 LTS, Express (`^4.21.0`), TypeScript (`^5.6.2`).
+- **Database & ORM**: PostgreSQL (cloud hosted via Neon/Supabase), Prisma ORM (`^5.20.0`).
+- **Authentication & Security**: JWT (`jsonwebtoken ^9.0.2`), `bcryptjs ^2.4.3`, CORS protection.
+- **Real-Time Communication**: Socket.io (`^4.8.0`).
+- **Validation**: Zod schema validation (`^3.23.8`).
 
-## 2. Prerequisites
+---
 
-- **Node.js** 18+ — https://nodejs.org
-- A **free PostgreSQL database** — go to https://neon.tech, sign up, create a project,
-  copy the connection string (looks like `postgresql://user:password@host/dbname?sslmode=require`)
+## 2. Team Ownership & Git Branching Workflow
 
-## 3. First-time setup
+### Branch Conventions
+
+| Teammate | Working Branch | Primary Module Ownership |
+|---|---|---|
+| **Pranta** | `pranta` | Project Lead, system integration, architectural review, PR approvals. |
+| **Bani** | `bani` | Dispatcher dashboard, service requests, work orders, technician matching & assignment. |
+| **Meshba** | `meshba` | Registration & admin foundation, staff/technician/customer management, credentials audit. |
+| **Prity** | `prity` | Customer requests & arrival tracking, technician daily jobs, invoices & payments. |
+
+### Contribution Lifecycle
+
+1. **Production Branch (`main`)**: Protected. Direct pushes and force pushes are blocked by GitHub rulesets. All merges must go through a verified Pull Request with passing CI checks.
+2. **Integration Branch (`pranta`)**: Stable integration branch where feature PRs are reviewed and tested before landing on `main`.
+3. **Workflow**:
+   ```
+   feature/<topic> ──> Pull Request ──> Review & CI ──> pranta ──> Final PR ──> main
+   ```
+4. **Conventional Commits**: Every commit must use conventional commit formatting:
+   - `feat:` — New user-facing or API capability
+   - `fix:` — Bug fix or error resolution
+   - `refactor:` — Code structure improvement with no behavior change
+   - `docs:` — Documentation updates
+   - `test:` — Test suite additions or fixes
+   - `chore:` — Dependency updates, tooling, or build configuration
+
+---
+
+## 3. GitHub Actions CI/CD Quality Gates
+
+Every push and Pull Request targeting `pranta` or `main` triggers `.github/workflows/ci.yml`:
+1. `npm ci` — Deterministic clean installation from `package-lock.json`.
+2. `npx prisma validate` — Validates structural integrity of `prisma/schema.prisma`.
+3. `npm run prisma:generate` — Generates type-safe Prisma Client models.
+4. `npm run build` (`tsc`) — Compiles TypeScript without errors.
+
+---
+
+## 4. Local Development Setup
+
+### Prerequisites
+- **Node.js** 20 LTS — [https://nodejs.org](https://nodejs.org)
+- **PostgreSQL Database** — Free managed instance from [https://neon.tech](https://neon.tech) or [https://supabase.com](https://supabase.com).
+
+### Installation & Environment
 
 ```bash
-npm install
-```
+# 1. Install dependencies
+npm ci
 
-```bash
+# 2. Configure environment
 # Windows:
 copy .env.example .env
-# Mac/Linux/Git Bash:
+# Mac/Linux:
 cp .env.example .env
 ```
 
-Open `.env` and paste your Neon connection string into `DATABASE_URL`. Replace
-`JWT_SECRET` with any long random string.
+Open `.env` and configure:
+```env
+DATABASE_URL="postgresql://user:password@host/dbname?sslmode=require"
+JWT_SECRET="replace-with-a-secure-random-secret-key-at-least-32-characters"
+JWT_EXPIRES_IN="7d"
+PORT=5000
+FRONTEND_URL="http://localhost:5173"
+```
 
-Create the database tables and seed test data:
+### Database Migration & Seeding
 
 ```bash
+# Generate Prisma Client
+npm run prisma:generate
+
+# Apply database migrations
 npm run prisma:migrate
+
+# Seed baseline demonstration accounts
 npm run seed
 ```
 
-If asked for a migration name, type `init`.
+Default seeded accounts (`password123`):
+- **Admin**: `admin@voltops.test`
+- **Dispatcher**: `dispatcher@voltops.test`
+- **Technician**: `technician@voltops.test`
+- **Customer**: `customer@voltops.test`
 
-You'll see test login credentials printed at the end (all use password `password123`):
-```
-Admin:      admin@voltops.test
-Dispatcher: dispatcher@voltops.test
-Technician: technician@voltops.test
-Customer:   customer@voltops.test
-```
-
-Start the server:
+### Running the API
 
 ```bash
+# Development mode with hot reload
 npm run dev
+
+# Production build & start
+npm run build
+npm start
 ```
-
-You should see: `VoltOps API running at http://localhost:5000`
-
-## 4. Everyday workflow
-
-```bash
-npm run dev
-```
-
-Whenever you change `prisma/schema.prisma`, run `npm run prisma:migrate` again.
-
-## 5. Project structure
-
-```
-├── prisma/
-│   ├── schema.prisma     ← database structure (all tables)
-│   └── seed.ts           ← creates test accounts + sample data
-└── src/
-    ├── server.ts         ← entry point
-    ├── app.ts            ← Express setup
-    ├── lib/               prisma.ts (DB connection), socket.ts (live updates, unused for now)
-    ├── middleware/        auth.ts, authorize.ts, errorHandler.ts
-    ├── controllers/       actual feature logic
-    ├── routes/            URL → controller mapping
-    ├── utils/             jwt.ts
-    └── types/             TypeScript type additions
-```
-
-## 6. Deploying
-
-Use https://render.com or https://railway.app (free tier). Connect this GitHub repo,
-copy your `.env` values into their dashboard's environment variables, done. Your Neon
-database is already cloud-hosted — nothing changes there.
-
-Once deployed, give the frontend team (or your own frontend repo's `.env`) this
-backend's live URL as `VITE_API_URL`.
-
-## 7. Why some things work the way they do
-
-- **Public registration only creates Customer accounts** — intentional. Staff accounts
-  (Admin/Dispatcher/Technician) are created by an Admin; until that screen is built,
-  use the seed script's test accounts.
-- **The frontend hiding a button is not real security** — every sensitive route here
-  also checks the role itself (`src/middleware/authorize.ts`). That's the actual
-  enforcement point.
+Default API endpoint: `http://localhost:5000/api`
