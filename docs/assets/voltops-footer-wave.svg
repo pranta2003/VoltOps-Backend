@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 70" width="100%" height="auto">
+  <defs>
+    <!-- Dynamic Wave Gradient -->
+    <linearGradient id="footer-wave-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10b981" stop-opacity="0" />
+      <stop offset="25%" stop-color="#10b981" stop-opacity="0.85" />
+      <stop offset="50%" stop-color="#34d399" stop-opacity="0.9" />
+      <stop offset="75%" stop-color="#06b6d4" stop-opacity="0.85" />
+      <stop offset="100%" stop-color="#06b6d4" stop-opacity="0" />
+    </linearGradient>
+
+    <clipPath id="footer-clip">
+      <rect width="1200" height="70" rx="12" />
+    </clipPath>
+
+    <style>
+      @keyframes waveStreamFooter {
+        0% { stroke-dashoffset: 0; }
+        100% { stroke-dashoffset: -1200; }
+      }
+      @keyframes waveStreamFooterSlow {
+        0% { stroke-dashoffset: 0; }
+        100% { stroke-dashoffset: 1200; }
+      }
+      .energy-wave-1 {
+        stroke-dasharray: 240 360;
+        animation: waveStreamFooter 8s linear infinite;
+      }
+      .energy-wave-2 {
+        stroke-dasharray: 180 420;
+        animation: waveStreamFooterSlow 12s linear infinite;
+      }
+    </style>
+  </defs>
+
+  <g clip-path="url(#footer-clip)">
+    <!-- Base Canvas -->
+    <rect width="1200" height="70" rx="12" fill="#090d16" />
+
+    <!-- Static Baseline -->
+    <path d="M 0 35 L 1200 35" stroke="#1e293b" stroke-width="1" stroke-opacity="0.5" />
+
+    <!-- Animated Wave Streams -->
+    <path d="M 0 35 Q 300 15 600 35 T 1200 35" fill="none" stroke="url(#footer-wave-grad)" stroke-width="2.5" class="energy-wave-1" />
+    <path d="M 0 35 Q 400 48 800 35 T 1200 35" fill="none" stroke="url(#footer-wave-grad)" stroke-width="1.5" class="energy-wave-2" opacity="0.65" />
+
+    <!-- Border -->
+    <rect width="1200" height="70" rx="12" fill="none" stroke="#1e293b" stroke-width="1.5" />
+  </g>
+</svg>
